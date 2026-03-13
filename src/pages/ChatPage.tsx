@@ -87,7 +87,7 @@ const ChatPage = () => {
           <div className="relative">
             <img src={activeConv.image} alt={activeConv.name} className="w-10 h-10 rounded-full object-cover border border-border/30" />
             {activeConv.online && (
-              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-card" />
+              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card bg-emerald-500" />
             )}
           </div>
           <div>
