@@ -66,7 +66,7 @@ const ChatPage = () => {
               <div className="relative shrink-0">
                 <img src={conv.image} alt={conv.name} className="w-12 h-12 rounded-full object-cover border border-border/30" />
                 {conv.online && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-card" />
+                  <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card bg-emerald-500" />
                 )}
               </div>
               <div className="flex-1 min-w-0 text-left">
