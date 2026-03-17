@@ -6,7 +6,7 @@ import profile1 from "@/assets/profile-1.jpg";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
-const BRANCHES = ["Petroleum Eng.", "Chemical Eng.", "Computer Science", "Mathematics and Computing", "Mechanical Eng.", "Electrical Eng."];
+const BRANCHES = ["Petroleum Eng.", "Chemical Eng.", "Computer Science", "CSD", "IT", "Mathematics and Computing", "Mechanical Eng.", "Electrical Eng."];
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 const GENDERS = [
   { value: "male", label: "Male" },
