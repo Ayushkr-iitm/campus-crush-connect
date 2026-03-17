@@ -4,7 +4,7 @@ import { Camera, Edit2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/use-toast";
 
-const BRANCHES = ["Petroleum Eng.", "Chemical Eng.", "Computer Science", "Mechanical Eng.", "Electrical Eng."];
+const BRANCHES = ["Petroleum Eng.", "Chemical Eng.", "Computer Science", "Mathematics and Computing", "Mechanical Eng.", "Electrical Eng."];
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 const SUGGESTED_INTERESTS = ["Music", "Sports", "Coding", "Photography", "Travel", "Food", "Movies", "Reading", "Gaming", "Art", "Dance", "Fitness"];
 
