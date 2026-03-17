@@ -4,6 +4,7 @@ const http = require("http");
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
+const mongoose = require("mongoose");
 const { apiLimiter } = require("./middleware/rateLimitMiddleware");
 const { errorHandler, notFound } = require("./middleware/errorMiddleware");
 const connectDB = require("./config/db");
@@ -15,8 +16,11 @@ const server = http.createServer(app);
 // Socket.io setup
 initSocket(server);
 
-// Database
-connectDB();
+// Database (connect in background; don't crash server on cold/blocked Atlas)
+connectDB().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error("MongoDB connection failed:", err.message);
+});
 
 // Middleware
 app.use(helmet());
@@ -59,7 +63,14 @@ app.use("/api", apiLimiter);
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "Campus Crush API running" });
+  const states = ["disconnected", "connected", "connecting", "disconnecting"];
+  res.json({
+    success: true,
+    message: "Campus Crush API running",
+    db: {
+      state: states[mongoose.connection.readyState] || "unknown"
+    }
+  });
 });
 
 // Routes
