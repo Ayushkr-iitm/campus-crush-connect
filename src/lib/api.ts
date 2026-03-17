@@ -1,0 +1,48 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+export const getAuthToken = () => localStorage.getItem("token");
+
+const authHeaders = () => {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+async function request(path: string, options: RequestInit = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+      ...authHeaders()
+    }
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || "Request failed");
+  }
+  return data;
+}
+
+export const api = {
+  register: (body: any) => request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
+  verifyOtp: (email: string, otp: string) => request("/auth/verify-otp", { method: "POST", body: JSON.stringify({ email, otp }) }),
+  resendOtp: (email: string) => request("/auth/resend-otp", { method: "POST", body: JSON.stringify({ email }) }),
+  login: (body: any) => request("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request("/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }),
+  me: () => request("/auth/me"),
+  updateProfile: (body: any) => request("/users/me", { method: "PUT", body: JSON.stringify(body) }),
+  deleteAccount: () => request("/users/me", { method: "DELETE" }),
+  discover: (gender?: "male" | "female" | "other") =>
+    request(`/users/discover${gender ? `?gender=${gender}` : ""}`),
+  sendCrush: (receiverId: string) => request("/crush", { method: "POST", body: JSON.stringify({ receiverId }) }),
+  matches: () => request("/matches"),
+  messagesForMatch: (matchId: string) => request(`/messages/${matchId}`),
+  reportUser: (reportedUserId: string, reason: string) =>
+    request("/users/report", { method: "POST", body: JSON.stringify({ reportedUserId, reason }) }),
+  blockUser: (userId: string) => request(`/users/block/${userId}`, { method: "POST" }),
+  blockedUsers: () => request("/users/blocked"),
+  unblockUser: (userId: string) => request(`/users/unblock/${userId}`, { method: "POST" })
+};
+

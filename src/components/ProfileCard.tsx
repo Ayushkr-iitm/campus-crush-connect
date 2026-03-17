@@ -19,7 +19,14 @@ const ProfileCard = ({ name, branch, year, bio, interests, image, onPass, onCrus
     return (
       <div className="glass-card-hover overflow-hidden">
         <div className="h-48 overflow-hidden">
-          <img src={image} alt={name} className="w-full h-full object-cover" />
+          <img
+            src={image || "/placeholder.svg"}
+            alt={name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
+            }}
+          />
         </div>
         <div className="p-4">
           <h3 className="font-display font-semibold text-foreground">{name}</h3>
@@ -41,7 +48,14 @@ const ProfileCard = ({ name, branch, year, bio, interests, image, onPass, onCrus
       transition={{ type: "spring", stiffness: 300 }}
     >
       <div className="relative h-80 overflow-hidden">
-        <img src={image} alt={name} className="w-full h-full object-cover" />
+        <img
+          src={image || "/placeholder.svg"}
+          alt={name}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/placeholder.svg";
+          }}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
         <div className="absolute bottom-4 left-4 right-4">
           <h3 className="text-2xl font-display font-bold text-foreground">{name}</h3>

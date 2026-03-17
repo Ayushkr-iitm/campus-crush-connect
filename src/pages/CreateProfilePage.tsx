@@ -1,25 +1,140 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Camera, Plus, X, Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import profile1 from "@/assets/profile-1.jpg";
+import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 
 const BRANCHES = ["Petroleum Eng.", "Chemical Eng.", "Computer Science", "Mechanical Eng.", "Electrical Eng."];
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
+const GENDERS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" }
+];
 const SUGGESTED_INTERESTS = ["Music", "Sports", "Coding", "Photography", "Travel", "Food", "Movies", "Reading", "Gaming", "Art", "Dance", "Fitness"];
 
 const CreateProfilePage = () => {
   const navigate = useNavigate();
+  const profileInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [branch, setBranch] = useState("");
   const [year, setYear] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "other" | "">("");
   const [bio, setBio] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [likes, setLikes] = useState("");
   const [dislikes, setDislikes] = useState("");
+  const [profilePhoto, setProfilePhoto] = useState<string>("");
+  const [coverPhoto, setCoverPhoto] = useState<string>("");
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const toggleInterest = (tag: string) => {
     setInterests((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+  };
+
+  const toBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+
+  const onPickProfile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await toBase64(file);
+      setProfilePhoto(dataUrl);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Photo error", description: err.message ?? "Failed to load image." });
+    }
+  };
+
+  const onPickCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await toBase64(file);
+      setCoverPhoto(dataUrl);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Photo error", description: err.message ?? "Failed to load image." });
+    }
+  };
+
+  const handleCreate = async () => {
+    try {
+      setLoading(true);
+      if (!email.endsWith("@rgipt.ac.in")) {
+        throw new Error("Only RGIPT emails are allowed (must end with @rgipt.ac.in).");
+      }
+      if (!gender) {
+        throw new Error("Please select your gender.");
+      }
+      const res = await api.register({
+        email,
+        password,
+        name,
+        branch,
+        year,
+        gender,
+        bio,
+        interests,
+        likes,
+        dislikes,
+        profilePhoto: profilePhoto || undefined,
+        coverPhoto: coverPhoto || undefined
+      });
+      if (res.needsVerification) {
+        setStep("otp");
+        toast({ title: "OTP sent", description: "Check your email and enter the OTP to verify." });
+        return;
+      }
+      toast({ title: "Account created", description: "Please login." });
+      navigate("/login");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Could not create account",
+        description: err.message ?? "Something went wrong."
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    try {
+      setLoading(true);
+      const res = await api.verifyOtp(email, otp);
+      localStorage.setItem("token", res.token);
+      navigate("/explore");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "OTP verification failed", description: err.message ?? "Try again." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      setLoading(true);
+      await api.resendOtp(email);
+      toast({ title: "OTP resent", description: "Please check your email." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Could not resend OTP", description: err.message ?? "Try again." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,16 +154,92 @@ const CreateProfilePage = () => {
             animate={{ opacity: 1, x: 0 }}
             className="lg:col-span-3 glass-card p-6 space-y-6"
           >
-            {/* Photos */}
+            {step === "otp" ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-1.5 block">Enter OTP</label>
+                  <input
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6-digit OTP"
+                    className="input-glow w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">We sent an OTP to `{email}` (valid for 10 minutes).</p>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  disabled={loading}
+                  onClick={handleVerifyOtp}
+                  className="btn-gradient w-full py-3.5 text-base"
+                >
+                  {loading ? "Verifying..." : "Verify OTP"}
+                </motion.button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleResendOtp}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Resend OTP
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Photos */}
             <div>
               <label className="text-sm font-medium text-foreground mb-3 block">Photos</label>
               <div className="flex gap-4">
-                <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-border/60 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors bg-muted/30">
-                  <Camera className="w-8 h-8 text-muted-foreground" />
+                <input ref={profileInputRef} type="file" accept="image/*" className="hidden" onChange={onPickProfile} />
+                <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={onPickCover} />
+
+                <button
+                  type="button"
+                  onClick={() => profileInputRef.current?.click()}
+                  className="w-28 h-28 rounded-2xl border-2 border-dashed border-border/60 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors bg-muted/30 overflow-hidden"
+                >
+                  {profilePhoto ? (
+                    <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  className="w-28 h-28 rounded-2xl border-2 border-dashed border-border/60 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors bg-muted/30 overflow-hidden"
+                >
+                  {coverPhoto ? (
+                    <img src={coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+                  ) : (
+                    <Plus className="w-6 h-6 text-muted-foreground" />
+                  )}
+                </button>
                 </div>
-                <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-border/60 flex items-center justify-center cursor-pointer hover:border-primary/40 transition-colors bg-muted/30">
-                  <Plus className="w-6 h-6 text-muted-foreground" />
-                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Campus Email</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="123456@rgipt.ac.in"
+                  className="input-glow w-full"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a password"
+                  className="input-glow w-full"
+                />
               </div>
             </div>
 
@@ -72,6 +263,18 @@ const CreateProfilePage = () => {
                   {YEARS.map((y) => (<option key={y} value={y}>{y}</option>))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">Gender</label>
+              <select value={gender} onChange={(e) => setGender(e.target.value as any)} className="input-glow w-full">
+                <option value="">Select gender</option>
+                {GENDERS.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -109,11 +312,14 @@ const CreateProfilePage = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/explore")}
+              disabled={loading}
+              onClick={handleCreate}
               className="btn-gradient w-full py-3.5 text-base"
             >
-              Create Profile
+              {loading ? "Saving..." : "Create Profile"}
             </motion.button>
+              </>
+            )}
           </motion.div>
 
           {/* Preview */}
@@ -125,7 +331,7 @@ const CreateProfilePage = () => {
             <p className="text-sm font-medium text-muted-foreground mb-3">Preview</p>
             <div className="glass-card overflow-hidden sticky top-24">
               <div className="h-56 overflow-hidden">
-                <img src={profile1} alt="Preview" className="w-full h-full object-cover" />
+                <img src={coverPhoto || profilePhoto || profile1} alt="Preview" className="w-full h-full object-cover" />
               </div>
               <div className="p-5">
                 <h3 className="text-xl font-display font-bold text-foreground">{name || "Your Name"}</h3>

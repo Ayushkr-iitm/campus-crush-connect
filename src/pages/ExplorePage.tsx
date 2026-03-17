@@ -1,26 +1,76 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ProfileCard from "@/components/ProfileCard";
-import profile1 from "@/assets/profile-1.jpg";
-import profile2 from "@/assets/profile-2.jpg";
-import profile3 from "@/assets/profile-3.jpg";
-import profile4 from "@/assets/profile-4.jpg";
-
-const profiles = [
-  { id: 1, name: "Priya Sharma", branch: "Computer Science", year: "3rd Year", bio: "Coffee addict ☕ | Love coding late at night and stargazing 🌟", interests: ["Coding", "Music", "Photography", "Travel"], image: profile1 },
-  { id: 2, name: "Arjun Kumar", branch: "Petroleum Eng.", year: "2nd Year", bio: "Gym enthusiast 💪 | Guitarist | Looking for someone to share chai with", interests: ["Fitness", "Music", "Movies", "Food"], image: profile2 },
-  { id: 3, name: "Neha Mishra", branch: "Chemical Eng.", year: "4th Year", bio: "Bookworm 📚 | Dance like nobody's watching 💃 | Sunset chaser", interests: ["Reading", "Dance", "Art", "Travel"], image: profile3 },
-  { id: 4, name: "Rahul Verma", branch: "Mechanical Eng.", year: "1st Year", bio: "New on campus! Football fanatic ⚽ | Anime lover | Always up for adventure", interests: ["Sports", "Gaming", "Movies", "Food"], image: profile4 },
-];
+import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 
 const ExplorePage = () => {
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [genderFilter, setGenderFilter] = useState<"all" | "male" | "female" | "other">("all");
 
-  const handleAction = (dir: number) => {
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await api.discover(genderFilter === "all" ? undefined : genderFilter);
+        setProfiles(
+          res.users.map((u: any) => ({
+            id: u._id || u.id,
+            name: u.name,
+            branch: u.branch,
+            year: u.year,
+            bio: u.bio,
+            interests: u.interests || [],
+            image: u.profilePhoto || "/placeholder.svg"
+          }))
+        );
+        setCurrentIndex(0);
+      } catch (err: any) {
+        toast({
+          variant: "destructive",
+          title: "Could not load students",
+          description: err.message ?? "Something went wrong."
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [toast, genderFilter]);
+
+  const handleAction = async (dir: number) => {
+    if (!profiles.length) return;
+    const current = profiles[currentIndex];
+
+    if (dir === 1) {
+      try {
+        const res = await api.sendCrush(current.id);
+        if (res.matched) {
+          toast({
+            title: "It's a match!",
+            description: `You matched with ${current.name}. Go to Matches to start chatting.`
+          });
+        }
+      } catch (err: any) {
+        toast({
+          variant: "destructive",
+          title: "Could not send crush",
+          description: err.message ?? "Please try again."
+        });
+      }
+    }
+
     setDirection(dir);
     setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % profiles.length);
+      setCurrentIndex((prev) => {
+        const next = prev + 1;
+        if (next >= profiles.length) return 0;
+        return next;
+      });
     }, 200);
   };
 
@@ -36,23 +86,43 @@ const ExplorePage = () => {
         Discover <span className="gradient-text">Students</span>
       </motion.h2>
 
+      <div className="w-full max-w-sm mb-4">
+        <label className="text-xs text-muted-foreground block mb-1">Show</label>
+        <select
+          value={genderFilter}
+          onChange={(e) => setGenderFilter(e.target.value as any)}
+          className="input-glow w-full py-2 text-sm"
+        >
+          <option value="all">All</option>
+          <option value="female">Females</option>
+          <option value="male">Males</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
       <div className="w-full max-w-sm relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={current.id}
-            initial={{ opacity: 0, x: direction * 100, scale: 0.95 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: direction * -100, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ProfileCard
-              {...current}
-              onPass={() => handleAction(-1)}
-              onCrush={() => handleAction(1)}
-              onSuperCrush={() => handleAction(1)}
-            />
-          </motion.div>
-        </AnimatePresence>
+        {loading ? (
+          <div className="glass-card p-8 text-center text-muted-foreground">Loading students...</div>
+        ) : profiles.length === 0 ? (
+          <div className="glass-card p-8 text-center text-muted-foreground">No more students to discover right now.</div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0, x: direction * 100, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: direction * -100, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ProfileCard
+                {...current}
+                onPass={() => handleAction(-1)}
+                onCrush={() => handleAction(1)}
+                onSuperCrush={() => handleAction(1)}
+              />
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
     </div>
   );

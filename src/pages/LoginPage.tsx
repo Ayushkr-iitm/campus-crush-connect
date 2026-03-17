@@ -2,16 +2,33 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Heart, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/use-toast";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/explore");
+    try {
+      setLoading(true);
+      const res = await api.login({ email, password });
+      localStorage.setItem("token", res.token);
+      navigate("/explore");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: err.message ?? "Could not log you in."
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -75,11 +92,12 @@ const LoginPage = () => {
 
             <motion.button
               type="submit"
+        disabled={loading}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="btn-gradient w-full py-3.5 text-base"
             >
-              Login
+              {loading ? "Logging in..." : "Login"}
             </motion.button>
           </form>
 

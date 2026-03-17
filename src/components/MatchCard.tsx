@@ -3,12 +3,13 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 
 interface MatchCardProps {
+  id?: string;
   name: string;
   image: string;
   matchedAt: string;
 }
 
-const MatchCard = ({ name, image, matchedAt }: MatchCardProps) => {
+const MatchCard = ({ id, name, image, matchedAt }: MatchCardProps) => {
   return (
     <motion.div
       className="glass-card-hover overflow-hidden"
@@ -22,7 +23,7 @@ const MatchCard = ({ name, image, matchedAt }: MatchCardProps) => {
         <h3 className="font-display font-semibold text-foreground">{name}</h3>
         <p className="text-xs text-muted-foreground mb-3">Matched {matchedAt}</p>
         <Link
-          to="/chat"
+          to={id ? `/chat?matchId=${id}` : "/chat"}
           className="btn-gradient w-full flex items-center justify-center gap-2 text-sm py-2"
         >
           <MessageCircle className="w-4 h-4" />
