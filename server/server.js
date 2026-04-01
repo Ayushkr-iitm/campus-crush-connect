@@ -39,6 +39,19 @@ app.use(
       if (allowedOrigins.includes("*")) return callback(null, true);
       if (allowedOrigins.length && allowedOrigins.includes(origin)) return callback(null, true);
 
+      // Vercel preview + production deployments use changing *.vercel.app hostnames.
+      // Set CORS_ALLOW_VERCEL_PREVIEWS=true on Render so any Vercel deployment can call the API.
+      if (process.env.CORS_ALLOW_VERCEL_PREVIEWS === "true") {
+        try {
+          const url = new URL(origin);
+          if (url.protocol === "https:" && url.hostname.endsWith(".vercel.app")) {
+            return callback(null, true);
+          }
+        } catch (_) {
+          // ignore
+        }
+      }
+
       // Dev convenience: allow localhost on any port
       if (process.env.NODE_ENV !== "production") {
         try {

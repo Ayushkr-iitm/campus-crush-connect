@@ -8,14 +8,25 @@ const authHeaders = () => {
 };
 
 async function request(path: string, options: RequestInit = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-      ...authHeaders()
-    }
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+        ...authHeaders()
+      }
+    });
+  } catch (e: unknown) {
+    const hint =
+      typeof window !== "undefined" &&
+      API_BASE_URL.includes("localhost") &&
+      !window.location.hostname.includes("localhost")
+        ? " API URL points to localhost — set VITE_API_URL on Vercel to your Render URL (https://…/api)."
+        : " Check internet, Render cold start (wait 60s), CORS (FRONTEND_URL / CORS_ALLOW_VERCEL_PREVIEWS), and VITE_API_URL.";
+    throw new Error(`Failed to fetch.${hint}`);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

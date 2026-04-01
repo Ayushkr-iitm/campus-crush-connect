@@ -5,6 +5,8 @@ const apiLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  // Don't rate-limit CORS preflight — can break login/register in the browser.
+  skip: (req) => req.method === "OPTIONS",
   message: {
     success: false,
     message: "Too many requests from this IP, please try again later."
