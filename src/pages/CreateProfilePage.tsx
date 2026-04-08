@@ -96,15 +96,7 @@ const CreateProfilePage = () => {
       });
       if (res.needsVerification) {
         setStep("otp");
-        if (res.otp) {
-          setOtp(res.otp);
-          toast({
-            title: "Email failed, OTP shown on screen",
-            description: "Use this OTP now, then please fix SMTP provider settings."
-          });
-        } else {
-          toast({ title: "OTP sent", description: "Check your email and enter the OTP to verify." });
-        }
+        toast({ title: "OTP sent", description: "Check your email and enter the OTP to verify." });
         return;
       }
       toast({ title: "Account created", description: "Please login." });
@@ -136,16 +128,8 @@ const CreateProfilePage = () => {
   const handleResendOtp = async () => {
     try {
       setLoading(true);
-      const res = await api.resendOtp(email);
-      if (res.otp) {
-        setOtp(res.otp);
-        toast({
-          title: "Email failed, OTP shown on screen",
-          description: "Use this OTP now, then fix SMTP provider settings."
-        });
-      } else {
-        toast({ title: "OTP resent", description: "Please check your email." });
-      }
+      await api.resendOtp(email);
+      toast({ title: "OTP resent", description: "Please check your email." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Could not resend OTP", description: err.message ?? "Try again." });
     } finally {
