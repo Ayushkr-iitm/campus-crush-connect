@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
 
 export const getAuthToken = () => localStorage.getItem("token");
 
@@ -9,9 +10,12 @@ const authHeaders = () => {
 
 async function request(path: string, options: RequestInit = {}) {
   let res: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -19,6 +23,9 @@ async function request(path: string, options: RequestInit = {}) {
       }
     });
   } catch (e: unknown) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("Request timed out. Server is taking too long (OTP/email service may be down). Please try again.");
+    }
     const hint =
       typeof window !== "undefined" &&
       API_BASE_URL.includes("localhost") &&
@@ -26,6 +33,8 @@ async function request(path: string, options: RequestInit = {}) {
         ? " API URL points to localhost — set VITE_API_URL on Vercel to your Render URL (https://…/api)."
         : " Check internet, Render cold start (wait 60s), CORS (FRONTEND_URL / CORS_ALLOW_VERCEL_PREVIEWS), and VITE_API_URL.";
     throw new Error(`Failed to fetch.${hint}`);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const data = await res.json().catch(() => ({}));

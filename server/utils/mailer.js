@@ -9,6 +9,7 @@ const getTransporter = () => {
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
+  const timeoutMs = Number(process.env.SMTP_TIMEOUT_MS || 8000);
 
   if (!host || !user || !pass) {
     throw new Error("SMTP credentials missing. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS in server .env");
@@ -18,7 +19,10 @@ const getTransporter = () => {
     host,
     port,
     secure: port === 465,
-    auth: { user, pass }
+    auth: { user, pass },
+    connectionTimeout: timeoutMs,
+    greetingTimeout: timeoutMs,
+    socketTimeout: timeoutMs
   });
 
   return transporter;
@@ -26,7 +30,7 @@ const getTransporter = () => {
 
 const sendOtpEmail = async (toEmail, otp) => {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  const maxAttempts = Number(process.env.SMTP_RETRY_ATTEMPTS || 3);
+  const maxAttempts = Number(process.env.SMTP_RETRY_ATTEMPTS || 2);
   let lastErr;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
