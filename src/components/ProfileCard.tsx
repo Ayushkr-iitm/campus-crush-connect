@@ -71,7 +71,10 @@ const ProfileCard = ({ name, branch, year, bio, interests, image, onPass, onCrus
           ))}
         </div>
 
-        <div className="flex items-center justify-center gap-4">
+        <div
+          className="flex items-center justify-center gap-4"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <motion.button
             whileHover={{ scale: 1.15 }}
             whileTap={{ scale: 0.9 }}

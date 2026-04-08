@@ -1,6 +1,6 @@
 const express = require("express");
 const { auth } = require("../middleware/authMiddleware");
-const { updateProfile, discoverUsers, blockUser, getBlockedUsers, unblockUser, deleteMe } = require("../controllers/userController");
+const { updateProfile, discoverUsers, skipUser, blockUser, getBlockedUsers, unblockUser, deleteMe } = require("../controllers/userController");
 const { createReport } = require("../controllers/reportController");
 
 const router = express.Router();
@@ -8,6 +8,7 @@ const router = express.Router();
 router.put("/me", auth, updateProfile);
 router.delete("/me", auth, deleteMe);
 router.get("/discover", auth, discoverUsers);
+router.post("/skip/:userId", auth, skipUser);
 router.post("/report", auth, createReport);
 router.post("/block/:userId", auth, blockUser);
 router.get("/blocked", auth, getBlockedUsers);

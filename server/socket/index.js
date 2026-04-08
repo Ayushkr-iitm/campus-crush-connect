@@ -5,11 +5,43 @@ const Message = require("../models/Message");
 
 let io;
 
+function allowSocketOrigin(origin, callback) {
+  if (!origin) return callback(null, true);
+  const allowedOrigins = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (allowedOrigins.includes("*")) return callback(null, true);
+  if (allowedOrigins.length && allowedOrigins.includes(origin)) return callback(null, true);
+  if (process.env.CORS_ALLOW_VERCEL_PREVIEWS === "true") {
+    try {
+      const url = new URL(origin);
+      if (url.protocol === "https:" && url.hostname.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const url = new URL(origin);
+      if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+        return callback(null, true);
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+  callback(new Error("CORS blocked for socket"));
+}
+
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || "*",
-      methods: ["GET", "POST"]
+      origin: allowSocketOrigin,
+      methods: ["GET", "POST"],
+      credentials: true
     }
   });
 
@@ -42,6 +74,7 @@ const initSocket = (server) => {
 
     socket.on("typing", ({ matchId, isTyping }) => {
       socket.to(`match:${matchId}`).emit("typing", {
+        matchId,
         userId: socket.userId,
         isTyping
       });

@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema(
     likes: { type: String, default: "" },
     dislikes: { type: String, default: "" },
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    skippedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     reports: [{ type: mongoose.Schema.Types.ObjectId, ref: "Report" }],
     isEmailVerified: { type: Boolean, default: false },
     emailOtpHash: { type: String, default: "" },

@@ -47,6 +47,7 @@ export const api = {
   deleteAccount: () => request("/users/me", { method: "DELETE" }),
   discover: (gender?: "male" | "female" | "other") =>
     request(`/users/discover${gender ? `?gender=${gender}` : ""}`),
+  skipUser: (userId: string) => request(`/users/skip/${userId}`, { method: "POST" }),
   sendCrush: (receiverId: string) => request("/crush", { method: "POST", body: JSON.stringify({ receiverId }) }),
   matches: () => request("/matches"),
   messagesForMatch: (matchId: string) => request(`/messages/${matchId}`),

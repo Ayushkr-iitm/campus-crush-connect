@@ -28,6 +28,16 @@ const loginSchema = z.object({
 
 const RGIPT_DOMAIN = "@rgipt.ac.in";
 
+const sendOtpOrThrow = async (email, otp) => {
+  try {
+    await sendOtpEmail(email, otp);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("OTP email send failed:", err.message);
+    throw new Error("Unable to send OTP right now. Please try again in a minute.");
+  }
+};
+
 exports.register = async (req, res, next) => {
   try {
     const parsed = registerSchema.parse(req.body);
@@ -74,11 +84,7 @@ exports.register = async (req, res, next) => {
       existing.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
       await existing.save();
 
-      // Send OTP asynchronously so registration doesn't timeout on slow SMTP
-      sendOtpEmail(email, otp).catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error("OTP email send failed:", err.message);
-      });
+      await sendOtpOrThrow(email, otp);
       return res.status(201).json({
         success: true,
         needsVerification: true,
@@ -119,11 +125,7 @@ exports.register = async (req, res, next) => {
       emailOtpHash: otpHash,
       emailOtpExpiresAt: new Date(Date.now() + 10 * 60 * 1000)
     });
-    // Send OTP asynchronously so registration doesn't timeout on slow SMTP
-    sendOtpEmail(email, otp).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error("OTP email send failed:", err.message);
-    });
+    await sendOtpOrThrow(email, otp);
 
     res.status(201).json({
       success: true,
@@ -134,6 +136,9 @@ exports.register = async (req, res, next) => {
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ success: false, message: "Invalid input", errors: err.errors });
+    }
+    if (err.message === "Unable to send OTP right now. Please try again in a minute.") {
+      return res.status(502).json({ success: false, message: err.message });
     }
     next(err);
   }
@@ -210,15 +215,14 @@ exports.resendOtp = async (req, res, next) => {
     user.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    // Send OTP asynchronously so resend doesn't timeout on slow SMTP
-    sendOtpEmail(email, otp).catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error("OTP email send failed:", err.message);
-    });
+    await sendOtpOrThrow(email, otp);
     res.json({ success: true, message: "OTP resent" });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ success: false, message: "Invalid input", errors: err.errors });
+    }
+    if (err.message === "Unable to send OTP right now. Please try again in a minute.") {
+      return res.status(502).json({ success: false, message: err.message });
     }
     next(err);
   }

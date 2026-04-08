@@ -74,14 +74,22 @@ exports.discoverUsers = async (req, res, next) => {
     });
     const matchedIds = matches.flatMap((m) => [m.user1.toString(), m.user2.toString()]);
 
-    const crushes = await Crush.find({
-      $or: [{ senderId: userId }, { receiverId: userId }]
-    });
-    const likedIds = crushes.flatMap((c) => [c.senderId.toString(), c.receiverId.toString()]);
+    // Only exclude people *you* already swiped right on (outgoing crush).
+    // If someone crushed you but you haven't, they must stay in your deck so you can match.
+    const outgoingCrushes = await Crush.find({ senderId: userId });
+    const outgoingReceiverIds = outgoingCrushes.map((c) => c.receiverId.toString());
 
     const blockedIds = (req.user.blockedUsers || []).map((id) => id.toString());
+    const skippedUsers = req.user.skippedUsers || [];
+    const skippedIds = skippedUsers.map((id) => id.toString());
 
-    const excluded = new Set([userId.toString(), ...matchedIds, ...likedIds, ...blockedIds]);
+    const excluded = new Set([
+      userId.toString(),
+      ...matchedIds,
+      ...outgoingReceiverIds,
+      ...blockedIds,
+      ...skippedIds
+    ]);
 
     const query = {
       _id: { $nin: Array.from(excluded) },
@@ -95,6 +103,33 @@ exports.discoverUsers = async (req, res, next) => {
     const users = await User.find(query).select("name branch year gender bio profilePhoto interests likes dislikes");
 
     res.json({ success: true, users });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.skipUser = async (req, res, next) => {
+  try {
+    const targetId = req.params.userId;
+    if (targetId === req.user._id.toString()) {
+      return res.status(400).json({ success: false, message: "Invalid user" });
+    }
+
+    const exists = await User.exists({ _id: targetId });
+    if (!exists) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (!req.user.skippedUsers) {
+      req.user.skippedUsers = [];
+    }
+    const already = req.user.skippedUsers.some((id) => id.toString() === targetId);
+    if (!already) {
+      req.user.skippedUsers.push(targetId);
+      await req.user.save();
+    }
+
+    res.json({ success: true, message: "Skipped" });
   } catch (err) {
     next(err);
   }
