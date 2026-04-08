@@ -28,12 +28,21 @@ const loginSchema = z.object({
 
 const RGIPT_DOMAIN = "@rgipt.ac.in";
 
-const sendOtpOrThrow = async (email, otp) => {
+const sendOtpWithFallback = async (email, otp) => {
   try {
     await sendOtpEmail(email, otp);
+    return { delivered: true, message: "OTP sent to your email. Verify to activate your account." };
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("OTP email send failed:", err.message);
+    const allowFallback = process.env.ALLOW_OTP_RESPONSE_FALLBACK === "true";
+    if (allowFallback) {
+      return {
+        delivered: false,
+        otp,
+        message: "Email delivery failed. Use the OTP shown on screen, then configure SMTP provider."
+      };
+    }
     throw new Error("Unable to send OTP right now. Please try again in a minute.");
   }
 };
@@ -84,12 +93,13 @@ exports.register = async (req, res, next) => {
       existing.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
       await existing.save();
 
-      await sendOtpOrThrow(email, otp);
+      const otpResult = await sendOtpWithFallback(email, otp);
       return res.status(201).json({
         success: true,
         needsVerification: true,
-        message: "OTP resent to your email. Verify to activate your account.",
-        email: existing.email
+        message: otpResult.delivered ? "OTP resent to your email. Verify to activate your account." : otpResult.message,
+        email: existing.email,
+        ...(otpResult.otp ? { otp: otpResult.otp, otpDeliveryFailed: true } : {})
       });
     }
 
@@ -125,13 +135,14 @@ exports.register = async (req, res, next) => {
       emailOtpHash: otpHash,
       emailOtpExpiresAt: new Date(Date.now() + 10 * 60 * 1000)
     });
-    await sendOtpOrThrow(email, otp);
+    const otpResult = await sendOtpWithFallback(email, otp);
 
     res.status(201).json({
       success: true,
       needsVerification: true,
-      message: "OTP sent to your email. Verify to activate your account.",
-      email: user.email
+      message: otpResult.message,
+      email: user.email,
+      ...(otpResult.otp ? { otp: otpResult.otp, otpDeliveryFailed: true } : {})
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -215,8 +226,12 @@ exports.resendOtp = async (req, res, next) => {
     user.emailOtpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    await sendOtpOrThrow(email, otp);
-    res.json({ success: true, message: "OTP resent" });
+    const otpResult = await sendOtpWithFallback(email, otp);
+    res.json({
+      success: true,
+      message: otpResult.delivered ? "OTP resent" : otpResult.message,
+      ...(otpResult.otp ? { otp: otpResult.otp, otpDeliveryFailed: true } : {})
+    });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ success: false, message: "Invalid input", errors: err.errors });
