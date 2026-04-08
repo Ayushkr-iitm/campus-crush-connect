@@ -1,5 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 15000);
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS || 60000);
 
 export const getAuthToken = () => localStorage.getItem("token");
 
