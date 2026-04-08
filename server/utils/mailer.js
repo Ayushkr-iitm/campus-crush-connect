@@ -2,6 +2,14 @@ const nodemailer = require("nodemailer");
 
 let transporter;
 let backupTransporter;
+const RESEND_ENDPOINT = "https://api.resend.com/emails";
+
+const getMailPayload = (toEmail, otp) => ({
+  to: toEmail,
+  subject: "Campus Crush OTP Verification",
+  text: `Your Campus Crush OTP is: ${otp}\n\nThis OTP expires in 10 minutes.`,
+  html: `<p>Your Campus Crush OTP is:</p><h2>${otp}</h2><p>This OTP expires in <b>10 minutes</b>.</p>`
+});
 
 const getTransporter = () => {
   if (transporter) return transporter;
@@ -61,17 +69,58 @@ const getBackupTransporter = () => {
 const sendOtpEmail = async (toEmail, otp) => {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   const maxAttempts = Number(process.env.SMTP_RETRY_ATTEMPTS || 2);
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const preferResend = process.env.EMAIL_PROVIDER === "resend";
   let lastErr;
+
+  if (preferResend || resendApiKey) {
+    try {
+      if (!resendApiKey) {
+        throw new Error("RESEND_API_KEY missing while EMAIL_PROVIDER=resend");
+      }
+      if (!from) {
+        throw new Error("SMTP_FROM is required for RESEND sender identity");
+      }
+      const payload = getMailPayload(toEmail, otp);
+      const response = await fetch(RESEND_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from,
+          to: [payload.to],
+          subject: payload.subject,
+          text: payload.text,
+          html: payload.html
+        })
+      });
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        throw new Error(`Resend API ${response.status}: ${body || "unknown error"}`);
+      }
+      return;
+    } catch (err) {
+      lastErr = err;
+      // eslint-disable-next-line no-console
+      console.error("OTP email via Resend failed:", err.message);
+      if (preferResend) {
+        throw lastErr;
+      }
+    }
+  }
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const t = getTransporter();
+      const payload = getMailPayload(toEmail, otp);
       await t.sendMail({
         from,
-        to: toEmail,
-        subject: "Campus Crush OTP Verification",
-        text: `Your Campus Crush OTP is: ${otp}\n\nThis OTP expires in 10 minutes.`,
-        html: `<p>Your Campus Crush OTP is:</p><h2>${otp}</h2><p>This OTP expires in <b>10 minutes</b>.</p>`
+        to: payload.to,
+        subject: payload.subject,
+        text: payload.text,
+        html: payload.html
       });
       return;
     } catch (err) {
@@ -80,12 +129,13 @@ const sendOtpEmail = async (toEmail, otp) => {
       console.error(`OTP email attempt ${attempt}/${maxAttempts} failed:`, err.message);
       try {
         const backup = getBackupTransporter();
+        const payload = getMailPayload(toEmail, otp);
         await backup.sendMail({
           from,
-          to: toEmail,
-          subject: "Campus Crush OTP Verification",
-          text: `Your Campus Crush OTP is: ${otp}\n\nThis OTP expires in 10 minutes.`,
-          html: `<p>Your Campus Crush OTP is:</p><h2>${otp}</h2><p>This OTP expires in <b>10 minutes</b>.</p>`
+          to: payload.to,
+          subject: payload.subject,
+          text: payload.text,
+          html: payload.html
         });
         return;
       } catch (backupErr) {
